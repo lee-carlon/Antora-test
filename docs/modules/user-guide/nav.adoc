@@ -1,6 +1,7 @@
 
 
-//* Get started
+* Getting started
+** xref:getting-started.adoc[leveloffset=+1]
 * Understanding Field Service Routing
 ** xref:understanding-field-service-routing/introduction.adoc[leveloffset=+1]
 ** xref:understanding-field-service-routing/visit-time-windows.adoc[leveloffset=+1]
