@@ -1,0 +1,159 @@
+= Using REST API
+
+:doctype: book
+:sectnums:
+:icons: font
+
+== Create problem data set
+
+Create problem data set using predefined model schema that follows OpenAPI specification.
+The application provides several out-of-the-box examples that can be used as a starting point.
+
+.List sample data sets REST API endpoint call
+====
+GET /v1/demo-data
+====
+
+.Get sample data set REST API endpoint call
+====
+GET /v1/demo-data/\{dataset_name\}
+====
+
+[#submitDataSet]
+== Submit a data set
+
+Submit the unsolved data set using the REST API.
+The application validates the input and returns a unique identifier of the problem.
+The solving process is scheduled and eventually starts.
+
+.Submit problem data set REST API endpoint call
+====
+POST /v1/route-plans
+====
+
+== Get current best solution and check status
+
+Check the current best solution and receive information about the solving process.
+The solution contains the optimized route plan.
+Use `id` attribute returned by xref:submitDataSet[submit a data set] step.
+
+.Check status REST API endpoint call
+====
+GET /v1/route-plans/\{id\}
+====
+
+== Terminate solving
+
+Terminate the solving process and receive the current best solution.
+Use `id` attribute returned by xref:submitDataSet[submit a data set] step.
+
+.Terminate solving REST API endpoint call
+====
+DELETE /v1/route-plans/\{id\}
+====
+
+== Get all solving processes
+
+Get info about the status of all solving processes.
+
+.Terminate solving REST API endpoint call
+====
+GET /v1/route-plans
+====
+
+== Recommendations
+
+Use this feature to react to abrupt changes in daily operations.
+Consider a call center that handles incoming service requests.
+The customer provides the operator with time windows when the service can take place.
+The Recommend Visit Time Windows API allows you to validate if the service can take place in one of the windows provided by the customer, in a quick way.
+The API provides a list of vehicle shift recommendations for every time window specified.
+The vehicle shift recommendations are sorted by quality, with the best fit first.
+
+=== Recommend Visit Time Windows
+
+Provides a list of recommendations for a single visit and given time windows.
+
+.Get time window recommendations for a new visit in an already optimized route plan
+====
+POST /v1/route-plans/\{id\}/recommendations/visit-recommend-time-windows
+====
+
+.Get time window recommendations for a new visit in a route plan that hasn't been optimized yet
+====
+POST /v1/route-plans/recommendations/visit-recommend-time-windows
+====
+
+=== Recommend Visit Group Time Windows
+
+Provides a list of recommendations for a visit group and given time windows.
+
+.Get time window recommendations for a new visit group in an already optimized route plan
+====
+POST /v1/route-plans/\{id\}/recommendations/visit-group-recommend-time-windows
+====
+
+.Get time window recommendations for a new visit group in a route plan that hasn't been optimized yet
+====
+POST /v1/route-plans/recommendations/visit-group-recommend-time-windows
+====
+
+== Score analysis
+
+Use this feature to understand the score structure of your route plan.
+It provides a detailed breakdown of the score, including the score of each constraint.
+
+The score analysis is automatically calculated and stored at the end of each solver run.
+
+.Get score analysis for a route plan
+====
+GET /v1/route-plans/\{id\}/score-analysis
+====
+
+.Sample score analysis result
+====
+[json]
+----
+{
+  "score": "0hard/0medium/-2540120soft",
+  "constraints": [
+      {
+        "name": "Last visit max departure time soft limit",
+        "weight": "0hard/0medium/-1soft",
+        "score": "0hard/0medium/0soft"
+      },
+      {
+        "name": "Minimize the visit completion risk",
+        "weight": "0hard/0medium/-1soft",
+        "score": "0hard/0medium/-97240soft"
+      }
+      ...
+----
+====
+
+Consider other use case where you have solved a route plan and want to fine tune it manually afterward.
+For example, assign a visit to a different vehicle shift.
+Use the score analysis to understand the impact of the change on the score and to validate that the new route plan is feasible.
+
+The endpoint accepts a route plan object in the request body.
+
+.Sample score analysis result
+====
+[json]
+----
+{
+  "score": "0hard/0medium/-1240120soft",
+  "constraints": [
+      {
+        "name": "Last visit max departure time soft limit",
+        "weight": "0hard/0medium/-1soft",
+        "score": "0hard/0medium/0soft"
+      },
+      {
+        "name": "Minimize the visit completion risk",
+        "weight": "0hard/0medium/-1soft",
+        "score": "0hard/0medium/-25240soft"
+      }
+      ...
+----
+====

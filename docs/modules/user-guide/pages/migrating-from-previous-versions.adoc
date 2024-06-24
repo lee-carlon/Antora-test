@@ -1,0 +1,999 @@
+= Migrating from previous versions
+
+:doctype: book
+:sectnums:
+:icons: font
+
+== From 0.17.0 to 0.18.0
+The version 0.18.0 introduces changes to the API.
+The changes are not backward compatible and require changes to the client code.
+
+=== Local date time replaced by date time with offset to UTC
+All ISO 8601 local date time types have been replaced by ISO 8601 local date time with offset to UTC (Coordinated Universal Time) to support multiple time zones.
+
+Affects all REST endpoints starting with `/v1/route-plans`.
+
+before (`start` and `end` are just examples, all datetime attributes are affected):
+
+[source,json]
+{
+    "start": "2024-01-01T08:00:00",
+    "end": "2024-01-01T12:00:00"
+}
+
+after (assuming the original local date time values are in UTC):
+
+[source,json]
+{
+    "start": "2024-01-01T08:00:00Z",
+    "end": "2024-01-01T12:00:00Z"
+}
+
+== From 0.16.0 to 0.17.0
+No migration needed.
+
+== From 0.15.0 to 0.16.0
+No migration needed.
+
+== From 0.14.0 to 0.15.0
+The version 0.15.0 introduces changes to the API.
+The changes are not backward compatible and require changes to the client code.
+
+=== Unavailability and floating break is replaced by a break
+
+Both unavailability and floating break have been replaced by a single concept of a break in the model input.
+
+Affects the following REST endpoints:
+
+- GET /v1/route-plans/\{id\}
+- DELETE /v1/route-plans/\{id\}
+- POST /v1/route-plans/
+- POST /v1/route-plans/\{id\}/recommendations/visit-recommend-time-windows
+- POST /v1/route-plans/\{id\}/recommendations/visit-group-recommend-time-windows
+- POST /v1/route-plans/recommendations/visit-recommend-time-windows
+- POST /v1/route-plans/recommendations/visit-group-recommend-time-windows
+
+before:
+
+[source,json]
+{
+  "vehicles": [
+    {
+      "id": "vehicle1",
+      "shifts": [
+        {
+          "id": "shift1",
+          "unavailabilities": [
+            {
+              "id": "un1",
+              "start": "2024-01-01T08:00:00",
+              "end": "2024-01-01T12:00:00",
+              "location": [49.288087,16.562172]
+            }
+          ],
+          "floatingBreaks": [
+            {
+              "id": "fb1",
+              "triggerTime": "2024-01-01T08:00:00",
+              "duration": "PT1H"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
+
+
+after:
+
+[source,json]
+{
+  "vehicles": [
+    {
+      "id": "vehicle1",
+      "shifts": [
+        {
+          "id": "shift1",
+          "requiredBreaks": [
+            {
+              "id": "un1",
+              "minStartTime": "2024-01-01T08:00:00",
+              "maxStartTime": "2024-01-01T08:00:00",
+              "duration": "PT4H",
+              "location": [49.288087,16.562172]
+            },
+            {
+              "id": "fb1",
+              "minStartTime": "2024-01-01T08:00:00",
+              "duration": "PT1H"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
+
+=== Vehicle shift itinerary contains also breaks
+
+The vehicle shift in both the model input and output now contains itinerary.
+The itinerary is a list of visits and breaks in the order they are visited or taken.
+
+Affects the following REST endpoints:
+
+- GET /v1/route-plans/\{id\}
+- DELETE /v1/route-plans/\{id\}
+- POST /v1/route-plans/
+- POST /v1/route-plans/\{id\}/recommendations/visit-recommend-time-windows
+- POST /v1/route-plans/\{id\}/recommendations/visit-group-recommend-time-windows
+- POST /v1/route-plans/recommendations/visit-recommend-time-windows
+- POST /v1/route-plans/recommendations/visit-group-recommend-time-windows
+
+before (model output):
+
+[source,json]
+{
+  "vehicles": [
+    {
+      "id": "vehicle1",
+      "shifts": [
+        {
+          "id": "shift1",
+          "itinerary": [
+            {
+              "id": "visit1",
+              "arrivalTime": "2024-03-21T08:00:00",
+              ...
+            },
+            {
+              "id": "visit2",
+              "arrivalTime": "2024-03-21T10:00:00",
+              ...
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
+
+after (model output):
+
+[source,json]
+{
+  "vehicles": [
+    {
+      "id": "vehicle1",
+      "shifts": [
+        {
+          "id": "shift1",
+          "itinerary": [
+            {
+              "id": "visit1",
+              "kind": "VISIT",
+              "arrivalTime": "2024-03-21T08:00:00",
+                ...
+            },
+            {
+              "id": "break1",
+              "kind": "BREAK",
+              "startTime": "2024-03-21T08:00:00",
+              "endTime": "2024-03-21T10:00:00",
+              ...
+            },
+            {
+              "id": "visit2",
+              "kind": "VISIT",
+              "arrivalTime": "2024-03-21T10:00:00",
+              ...
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
+
+Similarly, the itinerary is used in the model input when specifying already assigned visits or breaks:
+
+before (model input):
+
+[source,json]
+{
+  "vehicles": [
+    {
+      "id": "vehicle1",
+      "shifts": [
+        {
+          "id": "shift1",
+          "visits": [
+            "visit1",
+            "visit2"
+          ]
+        }
+      ]
+    }
+  ]
+}
+
+after (model input):
+
+[source,json]
+{
+  "vehicles": [
+    {
+      "id": "vehicle1",
+      "shifts": [
+        {
+          "id": "shift1",
+          "itinerary": [
+            {
+              "id": "visit1",
+              "kind": "VISIT"
+            },
+            {
+              "id": "break1",
+              "kind": "BREAK"
+            },
+            {
+              "id": "visit2",
+              "kind": "VISIT"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
+
+=== Tags related to skills/trade are superseded by skills
+
+Affects the following REST endpoints:
+
+- GET /v1/route-plans/\{id\}
+- DELETE /v1/route-plans/\{id\}
+- POST /v1/route-plans/
+- POST /v1/route-plans/\{id\}/recommendations/visit-recommend-time-windows
+- POST /v1/route-plans/\{id\}/recommendations/visit-group-recommend-time-windows
+- POST /v1/route-plans/recommendations/visit-recommend-time-windows
+- POST /v1/route-plans/recommendations/visit-group-recommend-time-windows
+
+Using the tags mechanism for vehicle shifts' skills or trades is deprecated and users should switch to skills (the items in *bold* break backward compatibility):
+
+- global `skills` attribute has been added for declaration of all used skill names (validation purposes),
+- a `visit` can specify required skills and their levels in `requiredSkills` attribute, see xref:reference-guide.adoc#skillRequirement[Skill Requirement] for details,
+- a `shift` can declare the skills, their levels and service duration multipliers in `skills` attribute, see xref:reference-guide.adoc#skillDefinition[Skill Definition] for details,
+- *the `visit.serviceDurationBreakdown[].tag` attribute has been replaced by `skill` attribute, see xref:reference-guide.adoc#serviceDurationBreakdown[Service Duration Breakdown] for details*,
+- *the `shift.serviceDurationMultipliers` array has been removed and is replaced by `skills[].multiplier` attribute, see xref:reference-guide.adoc#skillDefinition[Skill Definition] for details*,
+- a `shift` can declare `temporarySkillSets` in addition to `temporaryTagSets`, please see xref:reference-guide.adoc#temporarySkillSets[Temporary Skill Sets] for details.
+
+Before:
+
+[source,json]
+{
+  "tags": [
+    {"name":"plumber"},
+    {"name":"electrician"},
+    {"name":"north"},
+    {"name":"emergency"}
+  ],
+  "visits": [
+    {
+      "id":"1",
+      "requiredTags": ["plumber","north"],
+      "serviceDurationBreakdown": [
+        {
+          "tag": "plumber",
+          "duration": "PT1H"
+        }
+      ]
+      ...
+    },
+    ...
+  ],
+  "vehicles": [
+    "id": "vehicle1",
+    "shifts": [
+      {
+        "id": "shift1",
+        "tags": ["plumber", "north"],
+        "serviceDurationMultipliers": [
+          {
+            "tag": "plumber",
+            "multiplier": 0.5
+          }
+        ],
+        "temporaryTagSets": [
+          {
+            "start": "2024-01-01T08:00:00",
+            "end": "2024-01-01T12:00:00",
+            "tags": [
+              "electrician", "emergency"
+            ]
+          }
+        ],
+    ...
+  ],
+  ...
+}
+
+After:
+
+[source,json]
+{
+  "skills": ["plumber", "electrician"],
+  "tags": [
+    {"name":"north"},
+    {"name":"emergency"}
+  ],
+  "visits": [
+    {
+      "id":"1",
+      "requiredSkills": [
+        {
+          "name": "plumber"
+        }
+      ],
+      "requiredTags": ["north"],
+      "serviceDurationBreakdown": [
+        {
+          "skill": "plumber",
+          "duration": "PT1H"
+        }
+      ]
+    },
+    ...
+  ],
+  "vehicles": [
+    {
+      "id": "vehicle1",
+      "shifts": [
+        {
+          "id": "shift1",
+          "skills": [
+            {
+              "name": "plumber",
+              "multiplier": 0.5
+            }
+          "temporarySkillSets": [
+            {
+              "start": "2024-01-01T08:00:00",
+              "end": "2024-01-01T12:00:00",
+              "skills": [
+                {
+                  "name": "electrician"
+                }
+              ]
+            }
+          ],
+          "tags": ["north"],
+          "temporaryTagSets": [
+            {
+              "start": "2024-01-01T08:00:00",
+              "end": "2024-01-01T12:00:00",
+              "tags": [
+                "emergency"
+              ]
+            }
+          ],
+      ...
+  ],
+  ...
+}
+
+== From 0.13.1 to 0.14.0
+The version 0.14.0 introduces changes to the API.
+The changes are not backward compatible and require changes to the client code.
+
+=== Route plan request format changed
+
+The request format is now different from the response format.
+The request format now brings more structure in terms of separating the input data from the configuration data.
+
+Affects the following REST endpoints:
+
+- POST /v1/route-plans/
+
+Before:
+
+[source,json]
+{
+  "constraintConfiguration" : {
+    "maxSoftShiftEndTimeWeight" : 1
+  },
+  "vehicles": [
+    ...
+  ],
+  "visits": [
+    ...
+  ],
+  ...
+}
+
+After:
+
+[source,json]
+{
+  "config": {
+    "model" : {
+      "overrides" : {
+        "maxSoftShiftEndTimeWeight" : 1
+      }
+    }
+  },
+  "modelInput" : {
+    "vehicles": [
+      ...
+    ],
+    "visits": [
+      ...
+    ],
+    ...
+  }
+}
+
+=== Route plan response format changed
+
+Similarly to the request format, the response format now brings more structure in the data and some attribute renaming as well.
+Importantly, the response no longer repeats the input data, but contains only vehicle shift itineraries grouped by vehicles.
+
+Affects the following REST endpoints:
+
+- GET /v1/route-plans/\{id\}
+- DELETE /v1/route-plans/\{id\}
+
+Before:
+
+[source,json]
+{
+  "constraintConfiguration" : {
+    "maxSoftShiftEndTimeWeight" : 1
+  },
+  "vehicles": [
+    "id": "vehicle1",
+    "shifts": [
+      {
+        "id": "shift1",
+        "visits": [
+          "visit1",
+          "visit2"
+        ],
+        "statistics": {
+          "totalTravelTime": "PT3H",
+          ...
+        },
+        ...
+      }
+    ],
+  ],
+  "visits": [
+    {
+      "id": "visit1",
+      "arrivalTime": "2024-03-21T08:00:00",
+      ...
+    },
+    {
+      "id": "visit2",
+      "arrivalTime": "2024-03-21T10:00:00",
+      ...
+    }
+  ],
+  "status" : {
+    "id" : "model-run-id",
+    "solverStatus" : "COMPLETED",
+    ...
+  }
+  ...
+}
+
+After:
+
+[source,json]
+{
+  "run": {
+    "id" : "model-run-id",
+    "solverStatus" : "COMPLETED",
+    ...
+  },
+  "modelOutput" : {
+    "vehicles": [{
+      "id": "vehicle1",
+      "shifts": [{
+          "id": "shift1",
+          "itinerary": [
+            {
+              "visit": "visit1",
+              "arrivalTime": "2024-03-21T08:00:00",
+              ...
+            },
+            {
+              "visit": "visit2",
+              "arrivalTime": "2024-03-21T10:00:00",
+              ...
+            }
+          ],
+          "metrics": {
+            "totalTravelTime": "PT3H",
+            ...
+          }
+        }
+      ]
+      ...
+    }
+    ]
+  },
+  "kpis": {
+    "totalTravelTime": "PT30H",
+    ...
+  }
+}
+
+=== Route plan status request replaced by run request
+The route plan status request has been replaced by the run request.
+
+Affects the following REST endpoints:
+
+- GET /v1/route-plans/\{id\}/status
+
+Before:
+
+- GET /v1/route-plans/\{id\}/status
+
+After:
+
+- GET /v1/route-plans/\{id\}/run
+
+=== Recommendations request format has changed
+
+The recommend time windows request format for both visits and visit groups reflects the changes to the request format of the route plan:
+
+- the attribute `routePlan` has been renamed to `modelInput`
+- the attribute `constraintConfiguration` has been moved from the `routePlan` to `config.model.overrides`
+
+Affects the following REST endpoints:
+
+POST /v1/route-plans/\{id\}/recommendations/visit-recommend-time-windows
+
+POST /v1/route-plans/\{id\}/recommendations/visit-group-recommend-time-windows
+
+POST /v1/route-plans/recommendations/visit-recommend-time-windows
+
+POST /v1/route-plans/recommendations/visit-group-recommend-time-windows
+
+Before:
+
+[source,json]
+{
+  "maxNumberOfRecommendationsPerTimeWindow": 3,
+  "timeWindows": [
+  ...
+  ],
+  "fitVisitId": "visit999",
+  "routePlan": {
+    "constraintConfiguration" : {
+      "maxSoftShiftEndTimeWeight" : 1
+    },
+    "vehicles": [
+      ...
+    ],
+    "visits": [
+      ...
+    ],
+    ...
+  }
+}
+
+After:
+
+[source,json]
+{
+  "maxNumberOfRecommendationsPerTimeWindow": 3,
+  "timeWindows": [
+  ...
+  ],
+  "fitVisitId": "visit999",
+  "config": {
+    "model" : {
+      "overrides" : {
+        "maxSoftShiftEndTimeWeight" : 1
+      }
+    }
+  },
+  "modelInput": {
+    "vehicles": [
+      ...
+    ],
+    "visits": [
+      ...
+    ],
+    ...
+  }
+}
+
+
+=== Vehicle shifts moved under VehicleRoutePlan.vehicles, start and end attributes changed
+
+Affects the following REST endpoints:
+
+- GET /v1/route-plans/\{id\}
+- DELETE /v1/route-plans/\{id\}
+- POST /v1/route-plans/
+- POST /v1/route-plans/\{id\}/recommendations/visit-recommend-time-windows
+- POST /v1/route-plans/\{id\}/recommendations/visit-group-recommend-time-windows
+- POST /v1/route-plans/recommendations/visit-recommend-time-windows
+- POST /v1/route-plans/recommendations/visit-group-recommend-time-windows
+
+All vehicle shifts have been moved from `VehicleRoutePlan.vehicleShifts` to `Vehicle.shifts` of the corresponding vehicle in `VehicleRoutePlan.vehicles`.
+The attribute `vehicle` has been removed from `VehicleShift`.
+
+The `VehicleShift` attribute `shiftStartsFrom` has been removed.
+The following `VehicleShift` attributes have been replaced as follows:
+
+[%header,cols="1,3,3"]
+|===
+^|Attribute
+^|Replacement
+^|Description
+
+.^|`shiftStartTime`
+.^|`minStartTime` and `minFirstArrivalTime`
+.^|For vehicle shifts starting from the shift's start location, set `minStartTime`.
+
+For vehicle shifts starting from the shift's first assigned visit, set `minFirstVisitArrivalTime`.
+
+Both attributes can be set to ensure a lower bound for the vehicle shift start to avoid potential very-early shift start due to a long travel time to the first visit.
+
+At least one of `minStartTime` and `minFirstVisitArrivalTime` attributes has to be set.
+
+.^|`endLocationMaxArrivalTimeHardLimit`
+.^|`maxEndTime`
+.^|
+
+.^|`endLocationMaxArrivalTimeSoftLimit`
+.^|`maxSoftEndTime`
+.^|
+
+.^|`lastVisitMaxDepartureTimeHardLimit`
+.^|`maxLastVisitDepartureTime`
+.^|
+
+.^|`lastVisitMaxDepartureTimeSoftLimit`
+.^|`maxSoftLastVisitDepartureTime`
+.^|
+
+|===
+
+Before:
+
+[source,json]
+{
+  "vehicles": [
+    {"id": "Ann", "vehicleType": "VAN"}
+  ],
+  "vehicleShifts": [
+    {"id":"Ann-1","startLocation":[49.288087,16.562172],"shiftStartTime":"2024-03-21T08:00:00", "endLocationMaxArrivalTimeHardLimit": "2024-03-21T20:00:00", "endLocationMaxArrivalTimeSoftLimit": "2024-03-21T18:00:00", "lastVisitMaxDepartureTimeHardLimit": "2024-03-21T19:00:00", "lastVisitMaxDepartureTimeSoftLimit": "2024-03-21T17:00:00", ...},
+    {"id":"Ann-2","startLocation":[49.288087,16.562172],"shiftStartTime":"2024-03-22T08:00:00", "shiftStartsFrom": "FIRST_VISIT", ...},
+    ...
+  ],
+  ...
+}
+
+After:
+
+[source,json]
+{
+  "vehicles":[
+    {"id":"Ann",
+     "vehicleType":"VAN",
+     "shifts":[
+       {"id":"Ann-1","startLocation":[49.288087,16.562172],"minStartTime":"2024-03-21T08:00:00", "maxEndTime": "2024-03-21T20:00:00", "maxSoftEndTime": "2024-03-21T18:00:00", "maxLastVisitDepartureTime": "2024-03-21T19:00:00", "maxSoftLastVisitDepartureTime": "2024-03-21T17:00:00", ...},
+       {"id":"Ann-2","startLocation":[49.288087,16.562172],"minFirstVisitArrivalTime":"2024-03-22T08:00:00", ...},
+       ...
+     ]
+    },
+  ],
+}
+
+=== VehicleRoutePlan statistics moved under VehicleRoutePlan.statistics
+
+The following VehicleRoutePlan properties have been moved under `VehicleRoutePlan.statistics`:
+
+- `totalTravelTime`
+- `totalTravelDistanceMeters`
+- `totalUnassignedVisits`
+
+Affects the following REST endpoints:
+
+- GET /v1/route-plans/\{id\}
+
+If you send any of the 3 properties (`totalTravelTime`, `totalTravelDistanceMeters`, `totalUnassignedVisits`) in the requests (which is redundant and will not work in a future version), the following endpoints are affected as well:
+
+- DELETE /v1/route-plans/\{id\}
+- POST /v1/route-plans/
+- POST /v1/route-plans/\{id\}/recommendations/visit-recommend-time-windows
+- POST /v1/route-plans/\{id\}/recommendations/visit-group-recommend-time-windows
+- POST /v1/route-plans/recommendations/visit-recommend-time-windows
+- POST /v1/route-plans/recommendations/visit-group-recommend-time-windows
+
+Before:
+
+[source,json]
+{
+  "totalTravelTime": "PT3H",
+  "totalTravelDistanceMeters": 3000,
+  "totalUnassignedVisits": 0,
+  ...
+}
+
+After:
+
+[source,json]
+{
+  "statistics": {
+    "totalTravelTime": "PT3H",
+    "travelTimeFromStartLocationToFirstVisit": "PT1H",
+    "travelTimeBetweenVisits": "PT1H",
+    "travelTimeFromLastVisitToEndLocation": "PT1H",
+    "totalTravelDistanceMeters": 3000,
+    "travelDistanceFromStartLocationToFirstVisitMeters": 1000,
+    "travelDistanceBetweenVisitsMeters": 1000,
+    "travelDistanceFromLastVisitToEndLocationMeters": 1000,
+    "totalUnassignedVisits": 0
+  },
+  ...
+}
+
+=== Visit supports multiple time windows
+
+Affects the following REST endpoints:
+
+- GET /v1/route-plans/\{id\}
+- DELETE /v1/route-plans/\{id\}
+- POST /v1/route-plans/
+- POST /v1/route-plans/\{id\}/recommendations/visit-recommend-time-windows
+- POST /v1/route-plans/\{id\}/recommendations/visit-group-recommend-time-windows
+- POST /v1/route-plans/recommendations/visit-recommend-time-windows
+- POST /v1/route-plans/recommendations/visit-group-recommend-time-windows
+
+The `Visit` attributes `minimumStartTime`, `maximumStartTime` and `maximumEndTime` have been replaced by `Visit.timeWindows` array of JSON objects with `minStartTime`, `maxStartTime` and `maxEndTime` attributes.
+
+The `Visit` attribute `minimumStartTravelTime` has been renamed to `minStartTravelTime`.
+
+Please note that visit's time windows *must not overlap*.
+See xref:../reference-guide.adoc[Visit Time Window] for additional details.
+
+
+Before:
+
+[source,json]
+{
+  "visits": [
+    {"id":"1","name":"A single-resource visit","location":[33.67749834423416,-84.32354038529364],"minimumStartTime":"2024-02-23T08:00:00","maximumEndTime":"2024-02-23T18:00:00","minimumStartTravelTime":"2024-02-23T08:00:00","serviceDuration":"PT1H30M","requiredTags":["electrician","north"],"priority":"NORMAL", ...},
+    ...
+  ],
+  "visitGroups": [
+    {"id":"VG Ivy Fox 1",
+     "serviceDurationStrategy": "INDIVIDUAL",
+     "visits": [
+            {"id":"2a","name":"Ivy Fox (1/2)","location":[33.67749834423416,-84.32354038529364],"minimumStartTime":"2024-02-23T08:00:00","maximumStartTime":"2024-02-23T09:00:00","maximumEndTime":"2024-02-23T12:00:00","serviceDuration":"PT1H30M","requiredTags":["electrician","north"],"priority":"NORMAL", ...},
+             ...
+        ]
+    }
+    ...
+  ],
+  ...
+}
+
+After:
+
+[source,json]
+{
+  "visits": [
+    {"id":"1","name":"A single-resource visit","location":[33.67749834423416,-84.32354038529364], "timeWindows": [{ "minStartTime":"2024-02-23T08:00:00","maxEndTime":"2024-02-23T18:00:00"}],"minStartTravelTime":"2024-02-23T08:00:00","serviceDuration":"PT1H30M","requiredTags":["electrician","north"],"priority":"NORMAL", ...},
+    ...
+  ],
+  "visitGroups": [
+    {"id":"VG Ivy Fox 1",
+     "serviceDurationStrategy": "INDIVIDUAL",
+     "visits": [
+            {"id":"2a","name":"Ivy Fox (1/2)","location":[33.67749834423416,-84.32354038529364], "timeWindows": [{"minStartTime":"2024-02-23T08:00:00","maxStartTime":"2024-02-23T09:00:00","maxEndTime":"2024-02-23T12:00:00"}],"serviceDuration":"PT1H30M","requiredTags":["electrician","north"],"priority":"NORMAL", ...},
+             ...
+        ]
+    }
+    ...
+  ],
+  ...
+}
+
+== From 0.12.0 to 0.13.0
+
+The version 0.13.0 introduces changes to the API.
+The changes are not backward compatible and require changes to the client code.
+
+=== Recommend time windows endpoint changes its URL
+
+Affects the following REST endpoints:
+
+- POST /v1/route-plans/\{id\}/recommendations/recommend-time-windows
+
+Before:
+
+[source, bash]
+POST /v1/route-plans/{id}/recommendations/recommend-time-windows
+
+After:
+
+[source, bash]
+POST /v1/route-plans/{id}/recommendations/visit-recommend-time-windows
+
+== From 0.11.0 to 0.12.0
+
+The version 0.12.0 does not introduce any breaking changes to the API requiring migration.
+
+== From 0.10.0 to 0.11.0
+
+The version 0.11.0 introduces changes to the API.
+The changes are not backward compatible and require changes to the client code.
+
+=== Visits belonging to a visit group moved under VehicleRoutePlan.visitGroups
+
+Affects the following REST endpoints:
+
+- GET /v1/route-plans/\{id\}
+- DELETE /v1/route-plans/\{id\}
+- POST /v1/route-plans/\{id\}/recommendations/recommend-time-windows
+
+The visits which are members of a visit group have been moved from `VehicleRoutePlan.visits` under individual visit groups at `VehicleRoutePlan.visitGroups`. Other (non-multi-resource) visits remain at `VehicleRoutePlan.visits`.
+
+Before:
+
+[source,json]
+{
+  "visits": [
+    {"id":"1","name":"A single-resource visit","location":[33.67749834423416,-84.32354038529364],"minimumStartTime":"2024-02-23T08:00:00","maximumEndTime":"2024-02-23T18:00:00","serviceDuration":"PT1H30M","requiredTags":["electrician","north"],"priority":"NORMAL", ...},
+    {"id":"2a","name":"Ivy Fox (1/2)","location":[33.67749834423416,-84.32354038529364],"minimumStartTime":"2024-02-23T08:00:00","maximumEndTime":"2024-02-23T18:00:00","serviceDuration":"PT1H30M","requiredTags":["electrician","north"],"priority":"NORMAL", "visitGroup": "VG Ivy Fox 1", ...},
+    {"id":"2b","name":"Ivy Fox (2/2)","location":[33.67749834423416,-84.32354038529364],"minimumStartTime":"2024-02-23T08:00:00","maximumEndTime":"2024-02-23T18:00:00","serviceDuration":"PT1H","requiredTags":["electrician","north"],"priority":"NORMAL", "visitGroup": "VG Ivy Fox 1", ...},
+    ...
+  ],
+  ...
+}
+
+After:
+
+[source,json]
+{
+  "visits": [
+    {"id":"1","name":"A single-resource visit","location":[33.67749834423416,-84.32354038529364],"minimumStartTime":"2024-02-23T08:00:00","maximumEndTime":"2024-02-23T18:00:00","serviceDuration":"PT1H30M","requiredTags":["electrician","north"],"priority":"NORMAL", ...},
+    ...
+  ],
+  "visitGroups": [
+    {"id":"VG Ivy Fox 1",
+     "serviceDurationStrategy": "INDIVIDUAL",
+     "visits": [
+            {"id":"2a","name":"Ivy Fox (1/2)","location":[33.67749834423416,-84.32354038529364],"minimumStartTime":"2024-02-23T08:00:00","maximumEndTime":"2024-02-23T18:00:00","serviceDuration":"PT1H30M","requiredTags":["electrician","north"],"priority":"NORMAL", ...},
+            {"id":"2b","name":"Ivy Fox (2/2)","location":[33.67749834423416,-84.32354038529364],"minimumStartTime":"2024-02-23T08:00:00","maximumEndTime":"2024-02-23T18:00:00","serviceDuration":"PT1H","requiredTags":["electrician","north"],"priority":"NORMAL", ...}
+        ]
+    }
+    ...
+  ],
+  ...
+}
+
+== From 0.9.0 to 0.10.0
+
+The version 0.10.0 introduces changes to the API.
+The changes are not backward compatible and require changes to the client code.
+
+=== totalDrivingTime changes to totalTravelTime
+
+Affects the following REST endpoints:
+
+- GET /v1/route-plans/\{id\}
+- DELETE /v1/route-plans/\{id\}
+- POST /v1/route-plans/\{id\}/recommendations/recommend-time-windows
+
+Before:
+
+[source,json]
+{
+  "totalDrivingTime": "PT1H",
+  ...
+}
+
+After:
+
+[source,json]
+{
+  "totalTravelTime": "PT1H",
+  ...
+}
+
+=== VehicleShift startDateTime changes to shiftStartTime
+
+Affects the following REST endpoints:
+
+- GET /v1/route-plans/\{id\}
+- POST /v1/route-plans
+- DELETE /v1/route-plans/\{id\}
+- POST /v1/route-plans/\{id\}/recommendations/recommend-time-windows
+
+Before:
+
+[source,json]
+"vehicleShifts": [
+  {
+    "startDateTime": "2019-01-01T00:00:00",
+    ...
+  }
+]
+
+After:
+
+[source,json]
+"vehicleShifts": [
+  {
+    "shiftStartTime": "2019-01-01T00:00:00",
+    ...
+  }
+]
+
+=== VehicleShift totalDrivingTime and endLocationArrivalTime change to statistics.totalTravelTime and statistics.endLocationArrivalTime
+
+Affects the following REST endpoints:
+
+- GET /v1/route-plans/\{id\}
+- DELETE /v1/route-plans/\{id\}
+- POST /v1/route-plans/\{id\}/recommendations/recommend-time-windows
+
+Before:
+
+[source,json]
+"vehicleShifts": [
+  {
+    "totalDrivingTime": "PT1H",
+    "endLocationArrivalTime": "2019-01-01T00:00:00",
+    ...
+  }
+]
+
+After:
+
+[source,json]
+"vehicleShifts": [
+  {
+    "statistics": {
+      "totalTravelTime": "PT1H",
+      "endLocationArrivalTime": "2019-01-01T00:00:00",
+      ...
+    }
+  }
+]
+
+=== Visit drivingTimeFromPreviousStandstill changes to travelTimeFromPreviousStandstill
+
+Affects the following REST endpoints:
+
+- GET /v1/route-plans/\{id\}
+- DELETE /v1/route-plans/\{id\}
+- POST /v1/route-plans/\{id\}/recommendations/recommend-time-windows
+
+Before:
+
+[source,json]
+"visits": [
+  {
+    "drivingTimeFromPreviousStandstill": "PT1H",
+    ...
+  }
+]
+
+After:
+
+[source,json]
+"visits": [
+  {
+    "travelTimeFromPreviousStandstill": "PT1H",
+    ...
+  }
+]

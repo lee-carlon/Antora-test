@@ -1,0 +1,6 @@
+name: field-service-routing
+title: Field Service Routing
+version: latest
+nav:
+  - modules/user-guide/nav.adoc
+start_page: user-guide:understanding-field-service-routing/introduction.adoc

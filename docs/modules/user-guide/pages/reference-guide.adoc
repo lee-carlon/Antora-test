@@ -1,0 +1,1575 @@
+= Reference guide
+
+:doctype: book
+:sectnums:
+:icons: font
+
+This section describes the Field Service Routing data model.
+
+[#modelRequest]
+== Model request
+
+The model request is the top-level object of the Field Service Routing API.
+It contains the configuration of the model and the data set to optimize.
+
+[%header,cols="1,1,1,3"]
+|===
+^|Id
+^|Required
+^|Format
+^|Description
+
+.^|config
+.^|false
+.^|object
+.^|Configuration of the model and its run.
+
+.^|modelInput
+.^|true
+.^|object
+.^|The xref:modelInput[modelInput] is the data set to optimize.
+|===
+
+[#configuration]
+== Configuration
+
+The configuration object contains parameters influencing the optimization process.
+
+[%header,cols="1,1,1,3"]
+|===
+^|Id
+^|Required
+^|Format
+^|Description
+
+.^|run
+.^|false
+.^|object
+.^|Configuration of the requested model run, e.g. its termination.
+
+.^|model
+.^|false
+.^|object
+.^|Configuration of the model, e.g. its constraints weights.
+|===
+
+[#runConfiguration]
+== Run configuration
+
+[%header,cols="1,1,1,3"]
+|===
+^|Id
+^|Required
+^|Format
+^|Description
+
+.^|name
+.^|false
+.^|string
+.^|Optional model run name.
+If omitted, a default name is generated.
+
+.^|termination
+.^|false
+.^|object
+.^|Model run termination configuration.
+|===
+
+[#terminationConfiguration]
+== Termination configuration
+
+[%header,cols="1,1,1,3"]
+|===
+^|Id
+^|Required
+^|Format
+^|Description
+
+.^|spentLimit
+.^|false
+.^|string (ISO 8601 duration)
+.^|Maximum duration (e.g. PT1H) to keep the solver running.
+
+.^|unimprovedSpentLimit
+.^|false
+.^|string (ISO 8601 duration)
+.^|Maximum unimproved score duration. If the score has not improved during this period (e.g. PT5M), terminate the solver.
+|===
+
+[#modelConfiguration]
+== Model configuration
+
+[%header,cols="1,1,1,3"]
+|===
+^|Id
+^|Required
+^|Format
+^|Description
+
+.^|overrides
+.^|false
+.^|object
+.^|Overrides of the default model configuration.
+|===
+
+[#modelConfigurationOverrides]
+== Model configuration overrides
+
+Contains weights of soft constraint and additional constraint parameters, influencing whether these constraints trigger and how much they impact the solution's score.
+
+[%header,cols="2,1,2,1"]
+|===
+^|Id
+^|Format
+^|Description
+^|Example
+
+.^|maxSoftShiftEndTimeWeight  [[maxSoftShiftEndTimeWeight]]
+.^|number
+.^|A weight of the xref:understanding-field-service-routing/constraints.adoc#vehicleShiftEndTimeSoft[Max shift end time (soft)] constraint.
+.^|`1`
+
+.^|maxSoftLastVisitDepartureTimeWeight  [[maxSoftLastVisitDepartureTimeWeight]]
+.^|number
+.^|A weight of the xref:understanding-field-service-routing/constraints.adoc#vehicleShiftEndTimeSoft[Max last visit departure time (soft)] constraint.
+.^|`1`
+
+.^|minimizeTravelTimeWeight  [[minimizeTravelTimeWeight]]
+.^|number
+.^|A weight of the xref:understanding-field-service-routing/constraints.adoc#minimizeTravelTime[Minimize travel time] constraint.
+.^|`1`
+
+.^|minimizeTravelDistanceWeight  [[minimizeTravelDistanceWeight]]
+.^|number
+.^|A weight of the xref:understanding-field-service-routing/constraints.adoc#minimizeTravelDistance[Minimize travel distance] constraint.
+.^|`0`
+
+.^|preferVisitsScheduledToEarliestDayWeight  [[preferVisitsScheduledToEarliestDayWeight]]
+.^|number
+.^|A weight of the xref:understanding-field-service-routing/constraints.adoc#preferVisitsScheduledToEarliestDay[Prefer visits scheduled to the earliest day] constraint.
+.^|`1`
+
+.^|preferSchedulingOptionalVisitsWeight  [[penalizeUnassignedMovableVisitsWeight]]
+.^|number
+.^|A weight of the xref:understanding-field-service-routing/constraints.adoc#preferSchedulingOptionalVisits[Prefer scheduling optional visits] constraint.
+.^|`1`
+
+.^|minimizeVisitCompletionRiskWeight  [[minimizeVisitCompletionRiskWeight]]
+.^|number
+.^|A weight of the xref:understanding-field-service-routing/constraints.adoc#minimizeVisitCompletionRisk[Minimize the visit completion risk] constraint.
+.^|`1`
+
+.^|visitCompletionRiskMinimalTimeToShiftEnd  [[visitCompletionRiskMinimalTimeToShiftEnd]]
+.^|string (ISO 8601 duration)
+.^|A length of the time window between the visit departure time and the vehicle shift end.
+If a visit ends in this time window, its completion is considered risky.
+.^|`"PT1H"`
+
+.^|visitCompletionRiskMinimalPriority  [[visitCompletionRiskMinimalPriority]]
+.^|string
+.^|A minimal priority of a visit to consider it for the risk evaluation.
+.^|`"LOW"`
+
+.^|minimizeUnnecessarySkillsWeight  [[minimizeUnnecessarySkillsWeight]]
+.^|number
+.^|A weight of the xref:understanding-field-service-routing/constraints.adoc#minimizeUnnecessarySkills[Minimize scheduling vehicles with unnecessary skill levels] constraint.
+.^|`1`
+|===
+
+[#modelInput]
+== Model Input
+
+Represents the data set to optimize.
+
+It is a container for all the data necessary for optimizing the route plan, as the table below summarizes.
+
+[%header,cols="1,1,1,3"]
+|===
+^|Id
+^|Required
+^|Format
+^|Description
+
+.^|planningWindow
+.^|false
+.^|object
+.^|The xref:planningWindow[planning window] is the time interval to schedule for.
+
+If omitted, the planning window interval is derived as follows:
+
+ - `start`: the minimum of all xref:vehicleShift[vehicle shifts] `minStartTime` (or `minFirstVisitArrivalTime` when `minStartTime` is not defined) with time part adjusted to 00:00 (midnight).
+
+Example: `minStartTime = 2024-10-10T08:00+01:00` -> `start = 2024-10-10T00:00+01:00`.
+
+ - `end`: the next day after the maximum of all xref:vehicleShift[vehicle shifts] `shiftEndTime` with time part adjusted to 00:00 (midnight),
+where `shiftEndTime` is obtained as the first non-null value of the following `vehicleShift` attributes, in this order: `maxEnd`, `maxLastVisitDepartureTime`, `shiftStartTime`.
+
+Example: `shiftStartTime = 2024-10-10T08:00+01:00` -> `end = 2024-10-11T00:00+01:00`.
+
+.^|vehicles
+.^|true
+.^|array
+.^|An array of all xref:vehicle[vehicles] including their xref:vehicleShift[vehicle shifts].
+
+.^|visits
+.^|true
+.^|array
+.^|An array of all xref:visit[visits] that should be scheduled, excluding multi-resource visits (see xref:visitGroups[visitGroups]).
+
+.^|visitGroups [[visitGroups]]
+.^|false
+.^|array
+.^|An array of all xref:visitGroup[visit groups] that should be scheduled. A visit group defines a multi-resource visit, i.e. a visit that needs to be serviced by multiple vehicle shifts at the same time.
+
+.^|skills [[skills]]
+.^|false
+.^|array
+.^|An array of all skill names (string) used by
+xref:vehicleShift[vehicle shifts] to define the skills provided and by xref:visit[visits] to define the skills required.
+
+.^|tags  [[tags]]
+.^|false
+.^|array
+.^|An array of all xref:tag[tags] to match by a xref:vehicleShift[vehicle shift] with a xref:visit[visit].
+
+.^|freezeDeparturesBeforeTime
+.^|false
+.^|string (ISO 8601 date, time and time zone offset)
+.^|The date and time with offset to UTC before which all vehicle shifts are considered pinned ("frozen").
+
+In other words, every visit assigned to a vehicle shift which the shift already completed or started travelling to _before_ the `freezeDeparturesBeforeTime` is considered pinned and will not be reassigned to another shift or moved to a different position in the list of assigned visits for the shift.
+
+Usable for real-time planning scenario, such as re-submitting a plan that contains already assigned visits which must be pinned, such as in the following scenario:
+
+1. The plan _A_ is submitted to the solver, the solution for _A_ contains assigned visits to shifts.
+
+2. A few hours later, the solution for _A_ is used as a base for an updated plan _B_ adding new visits to be assigned after a (user-chosen) time _T_.
+
+3. The plan _B_ contains visits already planned (assigned during _A_'s planning) to a time before _T_ that need to be preserved, since they already happened.
+
+4. When the plan _B_ is submitted for solving, it needs to have the `freezeDeparturesBeforeTime` set to T.
+
+When omitted, no pinning/freeze is in effect.
+.^|travelTimeAdjustment
+.^|false
+.^|object
+.^|An optional xref:travelTimeAdjustment[Travel Time Adjustment] to compensate for longer travel times due to high traffic (multiplier) or difficult parking (extra constant time).
+
+.^|locationSetName
+.^|false
+.^|string
+.^|The optional name of the set of all locations contained in this plan, used for referencing a pre-calculated location time/distance matrix to speed up processing.
+
+If specified, all locations in the model _must_ be a subset of the referenced pre-calculated location set.
+
+If unspecified, a new time/distance matrix will be calculated for the request.
+|===
+
+[#planningWindow]
+== Planning window
+
+The planning windows specified a time range to plan for.
+
+[%header,cols="1,1,3,3,3"]
+|===
+^|Id
+^|Required
+^|Format
+^|Description
+^|Example
+
+.^|startDate [[planningWindowStartDate]]
+.^|true
+.^|string (ISO 8601 date, time and time zone offset)
+.^|A start date of the planning window (inclusive).
+.^|`"2023-11-27T00:00:00+01:00"`
+
+.^|endDate [[planningWindowEndDate]]
+.^|true
+.^|string (ISO 8601 date, time and time zone offset)
+.^|An end date of the planning window (exclusive).
+.^|`"2023-11-30T00:00:00+01:00"`
+
+|===
+
+[#vehicle]
+== Vehicle
+
+The vehicle represents a single vehicle visiting customers across the planning window.
+
+[%header,cols="1,1,3,3,3"]
+|===
+^|Id
+^|Required
+^|Format
+^|Description
+^|Example
+
+.^|id
+.^|true
+.^|string
+.^|A unique string identifier of the vehicle.
+.^|`"Alice Fox"`
+
+.^|vehicleType
+.^|false
+.^|string
+.^|A type of the vehicle.
+
+If omitted, "VAN" is used.
+.^|`"VAN"`
+
+.^|shifts
+.^|false
+.^|array
+.^|An array of all xref:vehicleShift[vehicle shifts] planned for this vehicle.
+.^|`[ {"id":"1","startLocation":[49.288087,16.562172],"shiftStartTime":"2024-03-21T08:00:00+01:00"}]`
+
+|===
+
+[#vehicleShift]
+== Vehicle shift
+
+Vehicle shift is an instance of a vehicle projected to a time interval in which the vehicle operates.
+In a multi-day field service routing, a vehicle shift a typically a single working day of the vehicle crew.
+After the optimization process, each vehicle shift contains an ordered list of visits.
+
+[%header,cols="1,1,3,3,3"]
+|===
+^|Id
+^|Required
+^|Format
+^|Description
+^|Example
+
+.^|id
+.^|true
+.^|string
+.^|A unique string identifier of the vehicle shift.
+.^|`"vehicle-shift-8026f548"`
+
+.^|minStartTime [[shift_minStartTime]]
+.^|false (one of `minStartTime` and `minFirstVisitArrivalTime` is required)
+.^|string (ISO 8601 date, time and time zone offset)
+.^|A minimum date and time when the vehicle shift can start.
+
+The value of `minStartTime` (if set) must be before or equal to `minFirstVisitArrivalTime`.
+.^|`"2023-11-27T09:00:00+01:00"`
+
+.^|minFirstVisitArrivalTime [[shift_minFirstVisitArrivalTime]]
+.^|false (one of `minStartTime` and `minFirstVisitArrivalTime` is required)
+.^|string (ISO 8601 date, time and time zone offset)
+.^|A minimum date and time when the vehicle shift is supposed to arrive to its first visit.
+
+The value of `minFirstVisitArrivalTime` (if set) must be after `minStartTime`.
+.^|`"2023-11-27T09:00:00+01:00"`
+
+.^|maxSoftLastVisitDepartureTime [[shift_maxSoftLastVisitDepartureTime]]
+.^|false
+.^|string (ISO 8601 date, time and time zone offset)
+.^|A maximal departure time from the last visit (soft).
+.^|`"2023-11-27T17:00:00+01:00"`
+
+.^|maxLastVisitDepartureTime [[shift_maxLastVisitDepartureTime]]
+.^|false
+.^|string (ISO 8601 date, time and time zone offset)
+.^|A maximal departure time from the last visit (hard).
+.^|`"2023-11-27T17:15:00+01:00"`
+
+.^|maxSoftEndTime [[shift_maxSoftEndTime]]
+.^|false
+.^|string (ISO 8601 date, time and time zone offset)
+.^|A maximal arrival time to the end location (soft).
+.^|`"2023-11-27T17:00:00+01:00"`
+
+.^|maxEndTime [[shift_maxEndTime]]
+.^|false
+.^|string (ISO 8601 date, time and time zone offset)
+.^|A maximal arrival time to the end location (hard).
+.^|`"2023-11-27T17:15:00+01:00"`
+
+.^|maxTravelTimePerVisit [[maxTravelTimePerVisit]]
+.^|false
+.^|string (ISO 8601 duration)
+.^|A maximal travel time limit per visit (hard).
+.^|`"PT1H"`
+
+.^|startLocation
+.^|true
+.^|array (latitude, longitude)
+.^|A start location coordinates of the vehicle shift.
+.^|`[
+52.5441475,
+-0.265105009
+]`
+
+.^|endLocation
+.^|false
+.^|array (latitude, longitude)
+.^|An end location coordinates of the vehicle shift.
+
+If omitted, the `startLocation` value is assumed.
+.^|`[
+52.5441475,
+-0.265105009
+]`
+
+.^|skills [[shift_skills]]
+.^|false
+.^|array
+.^|An array of xref:skillDefinition[skill definitions] which this vehicle shift provides.
+.^|`[{"name": "plumber", "level": 1, "multiplier": 1.0}]`
+
+.^|tags [[shift_tags]]
+.^|false
+.^|array
+.^|An array of tag references.
+.^|`["emergency"]`
+
+.^|temporarySkillSets [[temporarySkillSets]]
+.^|false
+.^|array
+.^|xref:skillDefinition[Skills] that are applicable within specified time intervals only.
+.^|`[
+{
+"start": "2023-11-27T09:00:00+01:00",
+"end": "2023-11-27T13:00:00+01:00",
+"skills": [{"name": "plumber", "level": 10}]
+}`
+
+.^|temporaryTagSets [[temporaryTagSets]]
+.^|false
+.^|array
+.^|Tags that are applicable within specified time intervals.
+.^|`[
+{
+"start": "2023-11-27T09:00:00+01:00",
+"end": "2023-11-27T13:00:00+01:00",
+"tags": [
+"emergency"
+]
+}`
+
+.^|requiredBreaks
+.^|false
+.^|array
+.^|An array of xref:requiredBreak[required breaks].
+.^|`[{
+"id": "233",
+"minStartTime": "2023-11-27T12:00:00+01:00",
+"duration": "PT1H"
+}
+]`
+
+.^|movableOccupationRatioThreshold [[movableOccupationRatioThreshold]]
+.^|false
+.^|number
+.^|Influences the ratio between movable and non-movable visits to assigned to this vehicle shift.
+.^|`"0.5"`
+
+.^|itinerary
+.^|false
+.^|array
+.^|An array of xref:inputItineraryItem[itinerary items] ordered by their scheduled arrival or start.
+.^|See xref:inputItineraryItem[input itinerary item].
+
+|===
+
+[#inputItineraryItem]
+== Input itinerary item
+
+Represents a visit or a break in the vehicle shift itinerary.
+Use to define already scheduled visits or breaks from previous planning.
+
+[%header,cols="1,1,3,3,3"]
+|===
+^|Id
+^|Format
+^|Required
+^|Description
+^|Example
+
+.^|id
+.^|string
+.^|true
+.^|A reference to a visit or a break.
+.^|`"8026f548"`
+
+.^|kind
+.^|string
+.^|true
+.^|Indicates the kind of the itinerary item. Either `VISIT` or `BREAK`.
+.^|`VISIT`
+
+|===
+
+
+[#visit]
+== Visit
+
+A visit represents an individual service job at customer location.
+For every visit, you can define the following attributes.
+
+[%header,cols="1,1,3,3,3"]
+|===
+^|Id
+^|Required
+^|Format
+^|Description
+^|Example
+
+.^|id
+.^|true
+.^|string
+.^|A unique string identifier of the visit.
+.^|`"974a7e67"`
+
+.^|name
+.^|false
+.^|string
+.^|A name of the visit.
+
+If omitted, the value of `id` is assumed.
+.^|`"Alex Pot"`
+
+.^|location
+.^|true
+.^|array (latitude, longitude)
+.^|A location coordinates of the visit.
+.^|`[
+52.0233688,
+0.239470348
+],`
+
+.^|timeWindows
+.^|false
+.^|array
+.^|An array of xref:visitTimeWindow[time windows] defining the time intervals when this visit can be performed by a vehicle shift.
+
+Please note that visit's individual time windows *must not overlap*.
+
+If omitted, a single time window with default values is assumed.
+.^|`[
+{
+"minStartTime": "2023-11-27T10:00:00+01:00",
+"maxEndTime": "2023-11-27T10:00:00+01:00"
+},
+{
+"minStartTime": "2023-11-27T10:00:00+01:00",
+"maxStartTime": "2023-11-27T10:00:00+01:00",
+"maxEndTime": "2023-11-27T10:00:00+01:00"
+}
+]`
+
+.^|serviceDuration [[serviceDuration]]
+.^|true
+.^|string (ISO 8601 duration)
+.^|The estimated duration of the service.
+.^|`"PT15M"`, `"PT1H30M10S"`
+
+.^|serviceDurationAdjustment
+.^|false
+.^|string (ISO 8601 duration)
+.^|The adjustment of the serviceDuration.
+Can be negative.
+.^|`"PT15M"`
+
+.^|serviceDurationBreakdown [[serviceDurationBreakdown]]
+.^|false
+.^|array
+.^|The visit xref:serviceDuration[serviceDuration] breakdown by individual trades (xref:skillIntroduction[skills]).
+
+The sum of durations for all skills specified here must not be greater than the value of xref:serviceDuration[serviceDuration].
+It can be less which allows for leaving a part of the job duration uncategorized - please note that the uncategorized part will not be adjusted by xref:skillDefinition[skill multipliers], but it will be added to the result (with multiplier 1.0).
+.^|`[
+{
+"skill": "plumber",
+"duration": "PT1H"
+},
+{
+"skill": "carpenter",
+"duration": "PT30M"
+}
+]`
+
+.^|requiredSkills [[requiredSkills]]
+.^|false
+.^|array
+.^|An array of xref:skillRequirement[skill requirements] for this visit.
+.^|`[{"name": "plumber", "minLevel": 1}]`
+
+.^|requiredTags [[requiredTags]]
+.^|false
+.^|array
+.^|An array of xref:tag[tag] references required by this visit.
+.^|`["north", "emergency"]`
+
+.^|priority
+.^|false
+.^|string
+.^|Visit priority.
+.^|`"HIGH"`
+
+.^|visitDependencies [[visitDependencies]]
+.^|false
+.^|array
+.^|An array of xref:visitDependency[visit dependencies].
+.^|`[
+{
+"id": "1",
+"precedingVisit": "58f18bb7",
+"minDelay": "PT2H"
+}
+]`
+
+.^|pinningRequested
+.^|false
+.^|boolean
+.^|Determines if the user requested to pin this particular visit (the visit must already be assigned).
+
+Setting `pinningRequested == true` on a visit forces this visit pinned even when the departure to this visit happens after the xref:modelInput[Route Plan] `freezeDeparturesBeforeTime` (so it is not considered pinned by default). Please note that all _previous_ visits in the vehicle shift assigned to this visit must be pinned, otherwise an exception is thrown.
+
+Useful when pinning needs to be extended beyond freezeDeparturesBeforeTime only for a particular visit or visits.
+.^|`true, false (default)`
+
+.^|minStartTravelTime
+.^|false
+.^|string (ISO 8601 date, time and time zone offset)
+.^|The minimum time when a shift can start travelling to this visit. When set, it can postpone visit's `arrivalTime`.
+
+Important: The value is _set automatically_ during solving, the user must only _preserve the value_ when re-submitting a plan that contains already assigned pinned visits.
+
+For example, consider the following scenario:
+
+1. The plan _A_ is submitted to the solver, the solution for _A_ contains assigned visits to shifts, including visits' `minStartTravelTime`.
+
+2. A few hours later, the solution for _A_ is used as a base for an updated plan _B_ adding new visits to be assigned after a (user-chosen) time _T_.
+
+3. The plan _B_ contains visits already planned (assigned during _A_'s planning) to a time before _T_ that need to be preserved, since they already happened.
+
+4. When the plan _B_ is submitted for solving with the `freezeDeparturesBeforeTime` set to T, the model will: a. use the existing `minStartTravelTime` values of pinned visits to calculate their `arrivalTime` correctly, b.calculate `minStartTravelTime` values for the unpinned visits to ensure they are assigned into the time period after the `freezeDeparturesBeforeTime`.
+
+.^|`"2023-11-27T14:00:00+01:00"`
+|===
+
+[#visitGroup]
+== Visit Group
+
+A visit group represents a multi-resource visit, i.e. a group of individual service jobs that need to be performed at customer location at the same time.
+
+[#visitGroupScenarios]
+=== Visit Group scenarios
+A visit group may be used to model different scenarios:
+
+1. Multiple vehicles need to perform a service job `S` at the same customer at the same time.
+We do not care about their skills, or they have the same set of skills - all we need is to synchronize multiple vehicles over a single customer visit.
+How to model:
+ - Create a visit for each part of the service job that needs to be assigned to a single vehicle.
+ - Set the created visit's `serviceDuration` to the duration of the original service job `S`.
+ - Create a visit group with either omitted, or the default `serviceDurationStrategy = INDIVIDUAL`, containing all the visits created in the previous step.
+
+2. Multiple vehicles with different skills (e.g. an electrician and a carpenter) and skill proficiency levels need to perform a service job at the same customer at the same time.
+How to model:
+ - Create a visit for each part of the service job that needs to be assigned to a single vehicle.
+ - Set the created visit's `serviceDuration` to the duration of the corresponding part of the original service job only.
+- Create a visit group with `serviceDurationStrategy = INDIVIDUAL` containing all the visits created in the previous step.
+
+3. Multiple vehicles with different skills (e.g. an electrician and a carpenter) need to perform a service job at the same customer at the same time, while the best skill proficiency (among all vehicles) determines the effective service duration of each visit in the group.
+How to model:
+- Create a visit for each part of the service job that needs to be assigned to a single vehicle.
+- Set the created visit's `serviceDuration` to the duration of the corresponding part of the original service job only.
+- Create a visit group with `serviceDurationStrategy = BEST_PROFICIENCY` containing all the visits created in the previous step.
+
+For every visit group, you can define the following attributes.
+
+[%header,cols="1,1,3,3,3"]
+|===
+^|Id
+^|Required
+^|Format
+^|Description
+^|Example
+
+.^|id
+.^|true
+.^|string
+.^|A unique string identifier of the visit group.
+.^|`"974a7e67"`
+
+.^|serviceDurationStrategy
+.^|false
+.^|string
+.^|The strategy to calculate the service duration of the visits in this visit group:
+
+INDIVIDUAL: The service duration of each visit in the group is calculated independently based on the service proficiency modifiers for the assigned vehicle shift. When multiple service proficiency modifiers match the visit's requirements, their average is used to adjust the service duration. (default)
+
+BEST_PROFICIENCY: The service duration of each visit in the group is calculated using the best service proficiency modifiers (separately for each tag) from all vehicle shifts assigned to the visits in the visit group. When multiple service proficiency modifiers match the requirements of a visit in the group, their average is used to adjust the visit's service duration.
+
+.^|`"INDIVIDUAL" (default), "BEST_PROFICIENCY"`
+
+.^|visits
+.^|false
+.^|array
+.^|An array of xref:visit[visits] that form together the visit group.
+
+Important: In xref:visitGroupScenarios[scenarios 2 and 3], the visits' `serviceDuration` attribute is expected to be already adjusted to the fact that this service is handled by multiple technicians.
+
+In other words, consider a single-resource visit taking one hour. When it is converted to a multi-resource visit (a visit group) formed by e.g. two visits, each of them is expected to have a shorter `serviceDuration` than one hour, taking into account that two resources (technicians) can handle the service faster.
+.^|`[
+{"id":"1abcd","name":"John","location":[49.288087,16.562172],"timeWindows": [{"minStartTime":"2024-02-23T08:00:00+01:00","maxEndTime":"2024-02-23T12:00:00+01:00"}],"serviceDuration":"PT1H","priority":"NORMAL"}
+],`
+
+|===
+[#skillIntroduction]
+== Skills
+Skills connect visits with the right vehicle shift.
+For instance, a visit may require a plumber skill, which limits the range of vehicle shifts that can pick up the visit.
+
+[#skillDefinition]
+=== Skill definition
+
+A skill definition specifies the skill name, its level and a potential service duration multiplier for a vehicle shift.
+
+[%header,cols="1,1,3,3,3"]
+|===
+^|Id
+^|Required
+^|Format
+^|Description
+^|Example
+
+.^|name
+.^|true
+.^|string
+.^|A unique string identifier of the skill. Must be declared in the input top-level xref:skills[skills] attribute.
+.^|"plumber"
+
+.^|level  [[skillLevel]]
+.^|false
+.^|number
+.^|A positive integer >= 1 defining the skill level (the higher, the better).
+The skill can be matched only to a skill requirement which has a lower or equal xref:skillMinLevel[minLevel].
+
+The default value is `1`.
+.^|10
+
+.^|multiplier  [[skillMultiplier]]
+.^|false
+.^|float
+.^|A float visit service duration multiplier, the assigned visit's service duration is multiplied with this `multiplier` to reflect a particular vehicle shift's skill level.
+
+The default value is null meaning this skill will not affect any service duration calculations (the value of 1.0 can still affect calculation of average duration of visits in a visit group).
+.^|0.8
+
+|===
+
+[#skillRequirement]
+=== Skill requirement
+
+A skill requirement specifies the skill name and the minimum skill level required from the vehicle shift assigned to this visit.
+
+[%header,cols="1,1,3,3,3"]
+|===
+^|Id
+^|Required
+^|Format
+^|Description
+^|Example
+
+.^|name
+.^|true
+.^|string
+.^|A unique string identifier of the skill. Must be declared in the input top-level xref:skills[skills] attribute.
+.^|"plumber"
+
+.^|minLevel  [[skillMinLevel]]
+.^|false
+.^|number
+.^|A positive integer >= 1 defining the required skill level (the higher, the better).
+The default value is `null`, meaning this skill does not care about skill level at all.
+.^|10
+
+|===
+
+[#tag]
+== Tag
+
+Tags connect visits with the right vehicle shift.
+For instance, a visit may require a vehicle shift for specific region, which limits the range of vehicle shifts that can pick up the visit.
+
+[%header,cols="1,1,3,3,3"]
+|===
+^|Id
+^|Required
+^|Format
+^|Description
+^|Example
+
+.^|name
+.^|true
+.^|string
+.^|A unique string identifier of the tag.
+.^|"emergency"
+
+|===
+
+[#visitTimeWindow]
+== Visit time window
+
+A visit time window represents a continuous time interval when a visit can be performed. See xref:understanding-field-service-routing/visit-time-windows.adoc[] section for additional details.
+
+[%header,cols="1,1,3,3,3"]
+|===
+^|Id
+^|Required
+^|Format
+^|Description
+^|Example
+
+.^|minStartTime [[minStartTime]]
+.^|false
+.^|string (ISO 8601 date, time and time zone offset)
+.^|A minimum start time of the visit (inclusive).
+
+If omitted, the xref:planningWindowStartDate[planning window start date] is assumed.
+.^|`"2023-11-27T10:00:00+01:00"`
+
+.^|maxStartTime [[maxStartTime]]
+.^|false
+.^|string (ISO 8601 date, time and time zone offset)
+.^|A maximum start time of the visit (exclusive).
+
+If omitted, `null` (no maximum start time) is assumed.
+.^|`"2023-11-27T10:00:00+01:00"`
+
+.^|maxEndTime [[maxEndTime]]
+.^|false
+.^|string (ISO 8601 date, time and time zone offset)
+.^|A maximum end time of the visit (exclusive).
+
+If omitted, the xref:planningWindowEndDate[planning window end date] is assumed.
+.^|`"2023-11-27T14:00:00+01:00"`
+
+|===
+
+[#visitDependency]
+== Visit dependency
+
+A visit can declare a dependency on some other visit, specifying a minimal delay between them.
+For example, a technological break between two maintenance tasks.
+
+[%header,cols="1,1,3,3,3"]
+|===
+^|Id
+^|Required
+^|Format
+^|Description
+^|Example
+
+.^|id
+.^|true
+.^|string
+.^|A unique string identifier of the visit dependency.
+.^|`"25"`
+
+.^|precedingVisit
+.^|true
+.^|string
+.^|A reference to the preceding xref:visit[visit] that must be completed first.
+.^|`"58f18bb7"`
+
+.^|minDelay
+.^|false
+.^|string (ISO 8601 duration)
+.^|A minimal delay between the two xref:visit[visits].
+.^|`"PT2H"`
+
+|===
+
+[#requiredBreak]
+== Required break
+
+Represents a break during a vehicle shift.
+The break can either be fixed (`minStartTime` and `maxStartTime` are equal) or floating (`maxStartTime` is not given).
+Optionally, the break can specify a `location`, in which case the solver will try to minimize the travel time to the location of the break.
+
+A fixed break delays the arrival time to the visit after the break by the duration of the break.
+
+A floating break is scheduled towards the next visit and does not delay the arrival time, assuming the break is taken after the travel.
+The visit's effective start time is used to determine if the floating break should be applied.
+Thus, in case of waiting between the arrival and the effective start time, the break is applied even before its `minStartTime`.
+
+[#breakLocation]
+
+[%header,cols="1,1,3,3,3"]
+|===
+^|Id
+^|Required
+^|Format
+^|Description
+^|Example
+
+.^|id
+.^|true
+.^|string
+.^|A unique string identifier of the break.
+.^|`"353"`
+
+.^|minStartTime [[breakMinStartTime]]
+.^|true
+.^|string (ISO 8601 date, time and time zone offset)
+.^|The earliest time to schedule the break at.
+.^|`"2023-11-27T12:00:00+01:00"`
+
+.^|maxStartTime
+.^|false
+.^|string (ISO 8601 date, time and time zone offset)
+.^|The latest time to schedule the break at.
+.^|`"2023-11-27T12:00:00+01:00"`
+
+.^|maxEndTime
+.^|false
+.^|string (ISO 8601 date, time and time zone offset)
+.^|The latest time the break should end at.
+.^|`"2023-11-27T12:00:00+01:00"`
+
+.^|duration
+.^|true
+.^|string (ISO 8601 duration)
+.^|A duration of the break.
+.^|`"PT1H"`
+
+.^|location [[breakLocation]]
+.^|false
+.^|array (latitude, longitude)
+.^|The location coordinates of the break
+.^|`[
+52.0233688,
+0.239470348
+],`
+
+|===
+
+[#travelTimeAdjustment]
+== Travel Time Adjustment
+
+Travel time adjustment can be defined to implement a "buffer" allowing for unexpected traffic delays or long parking time when travelling.
+
+The travel time adjustment is configured as a function for every route between any two locations as follows:
+
+`adjustedTravelTime = multiplier * mapTravelTime + extraTime`,
+
+where:
+
+* `mapTravelTime` is the travel time obtained from a map service,
+* `multiplier` and `extraTime` are the travel time adjustment attributes described below.
+
+[%header,cols="1,1,3,3,3"]
+|===
+^|Id
+^|Required
+^|Format
+^|Description
+^|Example
+
+.^|multiplier
+.^|false
+.^|float
+.^|The coefficient to multiply the original travel time obtained from a map service with. Must be greater than zero (typically will be greater than `1` to make the travel time longer).
+
+The default value is `1.0`.
+.^|`1.1` to achieve 10 % longer travel times
+
+.^|extraTime
+.^|false
+.^|string (ISO 8601 duration)
+.^|The additional time to add to the original travel time obtained from a map service. Must be positive or zero duration.
+
+The default value is `"PT0S"` (zero duration).
+.^|`"PT5M"` - to add extra 5 minutes to every route travel time
+|===
+
+== Model response
+
+The response to the model request is the optimized route plan, metadata about the model run, and key performance indicators (KPIs).
+
+[%header,cols="1,3,3,3"]
+|===
+^|Id
+^|Format
+^|Description
+^|Example
+
+.^|run
+.^|object
+.^|The xref:modelRun[model run] metadata.
+.^|See xref:modelRun[model run].
+
+.^|modelOutput
+.^|object
+.^|The xref:modelOutput[model output] containing the optimized route plan.
+.^|See xref:modelOutput[model output].
+
+.^|kpis
+.^|object
+.^|Overall xref:kpis[KPIs] of the vehicle route plan.
+.^|See xref:kpis[KPIs].
+
+|===
+
+[#modelRun]
+== Model run
+
+Contains metadata about the model solving run.
+
+[%header,cols="1,3,3,3"]
+|===
+^|Id
+^|Format
+^|Description
+^|Example
+
+.^|id
+.^|string
+.^|Unique identifier of the solver run
+.^|`"3e26e4d5-9447-46c5-8c3b-a8fef78bc1cb"`
+
+.^|name
+.^|string
+.^|Name of the solver run
+.^|`"VehicleRoutePlan-2023-11-29T09:09:30.825044+01:00"`
+
+.^|submitDateTime
+.^|string (ISO 8601 date, time and time zone offset)
+.^|The time the model request was accepted.
+.^|`"2023-11-29T09:09:30.825044+01:00"`
+
+.^|startDateTime
+.^|string (ISO 8601 date, time and time zone offset)
+.^|The time solving the model request started.
+.^|`"2023-11-29T09:09:30.825044+01:00"`
+
+.^|completeDateTime
+.^|string (ISO 8601 date, time and time zone offset)
+.^|The time solving the model request completed.
+.^|`"2023-11-29T09:09:30.825044+01:00"`
+
+.^|solverStatus
+.^|string (one of: "NOT_SOLVING", "SOLVING_SCHEDULED", "SOLVING_ACTIVE", "SOLVING_COMPLETED", "SOLVING_FAILED", "SOLVING_DISABLED")
+.^|The status of the solver.
+.^|`"SOLVING_COMPLETED"`
+
+.^|score
+.^|string
+.^|The current score of the route plan, as calculated by the solver.
+.^|`"0hard/-7medium/-8116soft"`
+
+|===
+
+[#modelOutput]
+== Model output
+
+The model output is a counterpart to the xref:modelInput[model input] and represents the optimized route plan.
+The model output contains only the assignments of visits to vehicle shifts and does not repeat the input data.
+
+[%header,cols="1,3,3,3"]
+|===
+^|Id
+^|Format
+^|Description
+^|Example
+
+.^|vehicles
+.^|array
+.^|The list of plans per vehicle.
+.^|See xref:vehiclePlan[vehicle plan].
+|===
+
+[#vehiclePlan]
+== Vehicle plan
+
+The vehicle plan groups plans for individual vehicle shifts of a single vehicle.
+
+[%header,cols="1,3,3,3"]
+|===
+^|Id
+^|Format
+^|Description
+^|Example
+
+.^|id
+.^|String
+.^|ID of the vehicle from the model input.
+.^|See xref:vehicle[vehicle].
+
+.^|shifts
+.^|array
+.^|The list of plans per vehicle shift.
+.^|See xref:vehicleShiftPlan[vehicle shift plan].
+
+|===
+
+[#vehicleShiftPlan]
+== Vehicle shift plan
+
+The vehicle shift plan contains the optimized route plan (itinerary) for a single vehicle shift, as well as metrics of the route plan.
+
+[%header,cols="1,3,3,3"]
+|===
+^|Id
+^|Format
+^|Description
+^|Example
+
+.^|id
+.^|String
+.^|ID of the vehicle shift from the model input.
+.^|See xref:vehicleShift[vehicle shift].
+
+.^|startTime
+.^|string (ISO 8601 date, time and time zone offset)
+.^|The planned start date and time of the vehicle shift.
+.^|`"2023-11-27T09:00:00+01:00"`
+
+.^|itinerary
+.^|array
+.^|An array of xref:outputItineraryItem[itinerary items] ordered by their scheduled arrival or start.
+.^|See xref:outputItineraryItem[output itinerary item].
+
+.^|metrics
+.^|object
+.^|Metrics of the vehicle shift route.
+.^|See xref:vehicleShiftMetrics[vehicle shift metrics].
+|===
+
+[#outputItineraryItem]
+== Output itinerary item
+
+The itinerary item represents either a xref:outputItineraryItemVisit[visit] or a xref:outputItineraryItemBreak[break] in the vehicle shift itinerary.
+
+[#outputItineraryItemVisit]
+== Output itinerary item (visit)
+
+Represents a scheduled visit in the vehicle shift itinerary.
+
+[%header,cols="1,3,3,3"]
+|===
+^|Id
+^|Format
+^|Description
+^|Example
+
+.^|id
+.^|string
+.^|A reference to a visit.
+.^|`"8026f548"`
+
+.^|kind
+.^|string
+.^|Indicates the kind of the itinerary item.
+.^|`VISIT`
+
+.^|arrivalTime
+.^|string (ISO 8601 date, time and time zone offset)
+.^|The arrival time of the vehicle at the customer location.
+.^|`"2023-11-27T11:10:09+01:00"`
+
+.^|startServiceTime
+.^|string (ISO 8601 date, time and time zone offset)
+.^|The beginning of the service at the customer location.
+.^|`"2023-11-27T11:10:09+01:00"`
+
+.^|departureTime
+.^|string (ISO 8601 date, time and time zone offset)
+.^|The end of the service at the customer location.
+.^|`"2023-11-27T11:25:09+01:00"`
+
+.^|effectiveServiceDuration
+.^|string (ISO 8601 duration)
+.^|The effective duration of the service after applying the `skills multipliers` of the assigned xref:vehicleShift[vehicle shift] and adding the `serviceDurationAdjustment`.
+.^|`"PT15M"`
+
+.^|travelTimeFromPreviousStandstill
+.^|string (ISO 8601 duration)
+.^|The travel time either from the previous visit or from the start location of the assigned xref:vehicleShift[vehicle shift].
+.^|`"PT10M3S"`
+
+.^|travelDistanceMetersFromPreviousStandstill
+.^|integer
+.^|The travel distance either from the previous visit or from the start location of the assigned xref:vehicleShift[vehicle shift].
+.^|`5000`
+
+|===
+
+[#outputItineraryItemBreak]
+== Output itinerary item (break)
+
+Represents a scheduled break in the vehicle shift itinerary.
+
+[%header,cols="1,3,3,3"]
+|===
+^|Id
+^|Format
+^|Description
+^|Example
+
+.^|id
+.^|string
+.^|A reference to a break.
+.^|`"8026f548"`
+
+.^|kind
+.^|string
+.^|Indicates the kind of the itinerary item.
+.^|`BREAK`
+
+.^|startTime
+.^|string (ISO 8601 date, time and time zone offset)
+.^|The start time of the scheduled break.
+.^|`"2023-11-27T11:10:09+01:00"`
+
+.^|endTime
+.^|string (ISO 8601 date, time and time zone offset)
+.^|The end time of the scheduled break.
+.^|`"2023-11-27T11:10:09+01:00"`
+
+.^|travelTimeFromPreviousStandstill
+.^|string (ISO 8601 duration)
+.^|The travel time either from the previous visit or from the start location of the xref:vehicleShift[vehicle shift].
+Applies only to breaks with a location.
+.^|`"PT10M3S"`
+
+.^|travelDistanceMetersFromPreviousStandstill
+.^|integer
+.^|The travel distance either from the previous visit or from the start location of the xref:vehicleShift[vehicle shift].
+Applies only to breaks with a location.
+.^|`5000`
+
+|===
+
+[#vehicleShiftMetrics]
+== Vehicle shift metrics
+
+The vehicle shift metrics capture the performance of a single vehicle shift route plan.
+
+[%header,cols="1,3,3,3"]
+|===
+^|Id
+^|Format
+^|Description
+^|Example
+
+.^|totalTravelTime
+.^|string (ISO 8601 duration)
+.^|The total travel time by the vehicle shift.
+.^|`"PT2H15M"`
+
+.^|travelTimeFromStartLocationToFirstVisit
+.^|string (ISO 8601 duration)
+.^|The travel time from the start location to the first visit.
+.^|`"PT10M"`
+
+.^|travelTimeBetweenVisits
+.^|string (ISO 8601 duration)
+.^|The total travel time between visits excluding the travel time from the start location to the first visit and the travel time from the last visit to the end location.
+.^|`"PT2H"`
+
+.^|travelTimeFromLastVisitToEndLocation
+.^|string (ISO 8601 duration)
+.^|The travel time from the last visit to the end location.
+.^|`"PT5M"`
+
+.^|totalTravelDistanceMeters
+.^|integer
+.^|The total travel distance by the vehicle shift in meters.
+.^|`25000`
+
+.^|travelDistanceFromStartLocationToFirstVisitMeters
+.^|integer
+.^|The travel distance from the start location to the first visit in meters.
+.^|`3000`
+
+.^|travelDistanceBetweenVisitsMeters
+.^|integer
+.^|The total travel distance in meters between visits excluding the distances from the start location to the first visit and from the last visit to the end location.
+.^|`20000`
+
+.^|travelDistanceFromLastVisitToEndLocationMeters
+.^|integer
+.^|The travel distance from the last visit to the end location in meters.
+.^|`2000`
+
+.^|endLocationArrivalTime
+.^|string (ISO 8601 date, time and time zone offset)
+.^|The arrival time of the vehicle shift at the endLocation.
+.^|`"2023-11-27T17:15:00+01:00"`
+
+|===
+
+[#kpis]
+== Key performance indicators (KPIs)
+
+The key performance indicators (KPIs) of the entire route plan.
+These top-level metrics provide an overview of the route plan quality.
+
+[%header,cols="1,3,3,3"]
+|===
+^|Id
+^|Format
+^|Description
+^|Example
+
+.^|totalTravelTime
+.^|string (ISO 8601 duration)
+.^|The total travel time by all the vehicle shifts.
+.^|`"PT2H15M"`
+
+.^|travelTimeFromStartLocationToFirstVisit
+.^|string (ISO 8601 duration)
+.^|The travel time from the start location to the first visit summed for all vehicle shifts.
+.^|`"PT10M"`
+
+.^|travelTimeBetweenVisits
+.^|string (ISO 8601 duration)
+.^|The total travel time between visits excluding the travel time from the start location to the first visit and the travel time from the last visit to the end location, summed for all vehicle shifts.
+.^|`"PT2H"`
+
+.^|travelTimeFromLastVisitToEndLocation
+.^|string (ISO 8601 duration)
+.^|The travel time from the last visit to the end location summed for all vehicle shifts.
+.^|`"PT5M"`
+
+.^|totalTravelDistanceMeters
+.^|integer
+.^|The total travel distance by the vehicle shift in meters summed for all vehicle shifts.
+.^|`25000`
+
+.^|travelDistanceFromStartLocationToFirstVisitMeters
+.^|integer
+.^|The travel distance from the start location to the first visit in meters summed for all vehicle shifts.
+.^|`3000`
+
+.^|travelDistanceBetweenVisitsMeters
+.^|integer
+.^|The total travel distance in meters between visits excluding the distances from the start location to the first visit and from the last visit to the end location, summed for all vehicle shifts.
+.^|`20000`
+
+.^|travelDistanceFromLastVisitToEndLocationMeters
+.^|integer
+.^|The travel distance from the last visit to the end location in meters summed for all vehicle shifts.
+.^|`2000`
+
+.^|totalUnassignedVisits
+.^|number
+.^|The total amount of visits that were not assigned in the route plan.
+.^|`10`
+
+|===
+
+== Recommend Visit Time Windows API input
+
+Description of Recommend Visit Time Windows API input.
+
+[%header,cols="1,1,1,3,3"]
+|===
+^|Name
+^|Required
+^|Format
+^|Description
+^|Example
+
+.^|maxNumberOfRecommendationsPerTimeWindow
+.^|true
+.^|int
+.^|Upper limit for a number of vehicle shifts to recommend for a new visit, per each time window.
+.^|`"maxNumberOfRecommendationsPerTimeWindow": 3`
+
+.^|fitVisitId
+.^|true
+.^|string
+.^|Identifier of the visit to get the time window recommendations for. The visit with given identifier needs
+to be a part of the `routePlan`.
+.^|`"fitVisitId": "plumber-ann"`
+
+.^|timeWindows
+.^|true
+.^|array
+.^|Time windows to get the vehicle shift recommendations for (`startTime` inclusive, `endTime` exclusive).
+.^|`"timeWindows": [
+{
+"startTime":"2024-01-23T08:00:00+01:00",
+"endTime":"2024-01-23T18:00:00+01:00"
+},
+{
+"startTime":"2024-01-24T08:00:00+01:00",
+"endTime":"2024-01-24T12:00:00+01:00"
+}
+]
+`
+
+.^|modelInput
+.^|true
+.^|array
+.^|Input route plan that contains visit with identifier specified by `fitVisitId` attribute.
+.^|`"modelInput": {
+"name": "ATLANTA_SMALL",
+"vehicles": [
+{
+"id": "1",
+"vehicleType": "VAN"
+},
+`
+
+|===
+
+== Recommend Visit Time Windows API output
+
+Description of Recommend Visit Time Windows API output.
+
+[%header,cols="1,1,1,3"]
+|===
+^|Name
+^|Format
+^|Description
+^|Example
+
+.^|scoreDiff
+.^|string
+.^|Total score difference between the new solution with the fitted visit and the solution without the fitted visit.
+.^|`"scoreDiff": "0hard/48000medium/-480soft"`
+
+.^|constraintDiffs
+.^|array
+.^|Per-constraint score difference between the new solution with the fitted visit and the solution without the fitted visit.
+.^|`"constraintDiffs": [
+{
+"score": "0hard/0medium/-386soft",
+"constraintName": "Minimize travel time"
+},
+...
+`
+
+.^|timeWindow
+.^|object
+.^|Time window that the recommendation ties to.
+.^|`"timeWindow": {
+"startTime": "2024-01-23T08:00:00+01:00",
+"endTime": "2024-01-23T18:00:00+01:00"
+}`
+
+.^|vehicleShifts
+.^|array
+.^|Vehicle shift recommendations for the time window and the visit to fit.
+.^|See xref:vehicleShiftPlan[vehicle shift plan].
+
+.^|statistics
+.^|object
+.^|KPIs of the route plan with the fitted visit as per this recommendation.
+.^|See xref:kpis[KPIs].
+
+|===
+
+
+== Recommend Visit Group Time Windows API input
+
+Description of Recommend Visit Group Time Windows API input.
+
+[%header,cols="1,1,1,3,3"]
+|===
+^|Name
+^|Required
+^|Format
+^|Description
+^|Example
+
+.^|maxNumberOfRecommendationsPerTimeWindow
+.^|true
+.^|int
+.^|Upper limit for a number of vehicle shifts to recommend for a new visit group, per each time window.
+.^|`"maxNumberOfRecommendationsPerTimeWindow": 3`
+
+.^|fitVisitGroupId
+.^|true
+.^|string
+.^|Identifier of the visit group to get the time window recommendations for. The visit group with given identifier needs
+to be a part of the `routePlan`.
+.^|`"fitVisitGroupId": "plumber-ann"`
+
+.^|timeWindows
+.^|true
+.^|array
+.^|Time windows to get the vehicle shift recommendations for (`startTime` inclusive, `endTime` exclusive).
+.^|`"timeWindows": [
+{
+"startTime":"2024-01-23T08:00:00+01:00",
+"endTime":"2024-01-23T18:00:00+01:00"
+},
+{
+"startTime":"2024-01-24T08:00:00+01:00",
+"endTime":"2024-01-24T12:00:00+01:00"
+}
+]
+`
+
+.^|modelInput
+.^|true
+.^|array
+.^|Input route plan that contains a visit group with identifier specified by `fitVisitGroupId` attribute.
+.^|`"modelInput": {
+"name": "ATLANTA_SMALL",
+"vehicles": [
+{
+"id": "1",
+"vehicleType": "VAN"
+},
+...
+`
+
+|===
+
+== Recommend Visit Group Time Windows API output
+
+Description of Recommend Visit Group Time Windows API output.
+
+[%header,cols="1,1,1,3"]
+|===
+^|Name
+^|Format
+^|Description
+^|Example
+
+.^|scoreDiff
+.^|string
+.^|Total score difference between the new solution with the fitted visit group and the solution without the fitted visit group.
+.^|`"scoreDiff": "0hard/48000medium/-480soft"`
+
+.^|constraintDiffs
+.^|array
+.^|Per-constraint score difference between the new solution with the fitted visit group and the solution without the fitted visit group.
+.^|`"constraintDiffs": [
+{
+"score": "0hard/0medium/-386soft",
+"constraintName": "Minimize travel time"
+},
+...
+`
+
+.^|timeWindow
+.^|object
+.^|Time window that the recommendation ties to.
+.^|`"timeWindow": {
+"startTime": "2024-01-23T08:00:00+01:00",
+"endTime": "2024-01-23T18:00:00+01:00"
+}`
+
+.^|vehicleShifts
+.^|array
+.^|Vehicle shift recommendations for the time window and the visit group to fit.
+.^|See xref:vehicleShiftPlan[vehicle shift plan].
+
+.^|statistics
+.^|object
+.^|KPIs of the route plan with the fitted visit as per this recommendation.
+.^|See xref:kpis[KPIs].
+
+|===

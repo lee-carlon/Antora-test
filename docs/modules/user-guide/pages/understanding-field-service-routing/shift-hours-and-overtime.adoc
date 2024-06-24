@@ -1,0 +1,118 @@
+[#shiftHoursAndOvertime]
+= Shift hours and overtime
+
+:meta-image: understanding-field-service-routing/shift-hours-and-overtime/vehicle-shift-start-and-end.png
+:doctype: book
+:sectnums:
+:icons: font
+
+video::kvJ4VnrbNt4[youtube, width=800, height=600]
+
+Vehicle drivers have shifts:
+they work for a maximum number of hours, starting at a particular time.
+For example, a _nine to five_ shift starts at 09:00 and ends at 17:00,
+// TODO link to breaks
+for total of 8 hours (ignoring a lunch break).
+
+Labour regulations might accommodate overtime.
+Or permit to start/end a shift at any location.
+
+[#shiftStartAndEnd]
+== Shift start and end
+
+A shift has a minimum start time (`minStartTime`) and a maximum end time (`maxEndTime`).
+All travel and visits occur within that time span.
+
+For example, Carl works from 09:00 until 17:00.
+On Monday 1-feb, create a shift with minStartTime 09:00 and maxEndTime 17:00.
+The solver assigns three visits on Monday to him.
+Because of the service duration of those visits and the travel to, from and between those visits,
+his shift has an endTime of 16:30. That's well before the maxEndTime of 17:00:
+
+image::understanding-field-service-routing/shift-hours-and-overtime/vehicle-shift-start-and-end.png[]
+
+Carl takes PTO on Tuesday 2-feb, so don't create a vehicle shift for Carl on that day.
+He also takes PTO the next morning, but works in the afternoon:
+Create a shift on Wednesday 3-feb with minStartTime 13:00 and maxEndTime 17:00.
+The solver assigns him 2 visits on Wednesday and his shift ends at 17:00, just in the nick of time.
+
+A shift starts on the minStartTime, except in some rare cases for which it starts later (see below).
+A shift must end before the maxEndTime.
+
+[#overtime]
+== Overtime
+
+What happens if Carl works too long and overtime is forbidden?
+
+For example, Carl's assigned visits force him to work until 18:00, but his shift has a maxEndTime of 17:00.
+This is an infeasible schedule.
+The model penalizes the amount of time that Carl finishes his shift too late as a hard constraint: one hour.
+This automatically incentivises the solver to assign other or fewer visits, potentially leaving some visits unassigned.
+
+image::understanding-field-service-routing/shift-hours-and-overtime/vehicle-shift-overtime.png[]
+
+However, if overtime is allowed, Carl can work longer, but it is undesirable.
+// TODO and also a limit to overtime per week, but that will be a separate guide or section. Link to it.
+Still, he can't work forever. His shift must end before the next shift starts,
+with enough time for Carl to sleep and eat in between.
+To allow for overtime, use `maxSoftEndTime` for the normal end of his shift
+and `maxEndTime` for the worst possible end of his shift.
+
+For example, Carl can work two hours of overtime: create a shift with a maxSoftEndTime of 17:00 and a maxEndTime of 19:00.
+The model penalizes the amount of overtime as a soft constraint: one hour.
+This automatically incentivises the solver to assign some of his visits to other matching drivers without overtime, if possible.
+But if push comes to shove, the model incurs as much overtime as needed to avoid leaving visits unassigned.
+
+Sometimes a little bit of overtime can go a long way.
+For example, given two visits on an island reachable by ferry:
+
+image::understanding-field-service-routing/shift-hours-and-overtime/vehicle-shift-overtime-opportunity.png[]
+
+By incurring one hour of overtime, a single driver can service both visits on the same day.
+If overtime is forbidden, the solver has no other option than to assign the two visits to separate shifts.
+That reduces productivity dramatically, because the travel time by ferry has to happen twice as much.
+
+[#firstTravel]
+== The first travel doesn't count
+
+In some cases, the employer doesn't have to pay for the travel to the first visit.
+Instead, it comes out of the employee's personal time,
+regardless if the employee lives next near the first visit, or the other side of the region.
+
+To disregard the travel time to the first visit, use `minFirstVisitArrivalTime` instead of `minStartTime`.
+For example, Carl needs to arrive at his first visit at 9:00.
+Create a shift with a `minFirstVisitArrivalTime` of 9:00.
+Because it takes him an hour to drive there, Carl's shift actually starts at 8:00 today.
+Tomorrow, his first visit might be around the corner and his shift start at 8:55 to arrive there at 9:00 too.
+
+image::understanding-field-service-routing/shift-hours-and-overtime/vehicle-shift-first-visit-arrival.png[]
+
+Using only `minFirstVisitArrivalTime` is dangerous.
+There is a limit on Carl's willingness to work for free.
+But the solver is incentivised to maximize use of that free travel time,
+to fit more visits during the normal shift hours.
+
+For example, if there's a visit on an island with a long travel time by ferry,
+the solver assigns that travel during Carl's personal time.
+But to arrive at the island visit at 9:00, Carl has to get up at 5:00 to depart at 6:00.
+To prevent that, set a `minStartTime` of 7:00.
+This way, Carl departs at 7:00 to arrive at the island visit at 10:00.
+It's a compromise: 2 hours of Carl's personal time and 1 hour of the employer's time.
+
+[#lastTravel]
+== The last travel doesn't count
+
+Similarly, the employer doesn't always have to pay to travel back home from the last visit.
+
+To disregard the travel time from the last visit, use `maxLastVisitDepartureTime` instead of `maxEndTime`.
+For example, Carl must finish his last visit at 17:00, regardless of how much time it takes him to get home.
+Create a shift with a `maxLastVisitDepartureTime` of 17:00.
+
+image::understanding-field-service-routing/shift-hours-and-overtime/vehicle-shift-last-visit-departure.png[]
+
+Again, using only `maxLastVisitDepartureTime` is dangerous.
+For example, Carl finishes his last visit at 17:00, but it takes 3 hours to get home at 20:00.
+To prevent that, set a `maxEndTime` of 19:00, to ensure Carl is always home in time for dinner.
+Regardless of where his last visit is located.
+
+// TODO start/end location?
