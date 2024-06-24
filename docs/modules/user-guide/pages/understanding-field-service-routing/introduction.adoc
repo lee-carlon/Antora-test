@@ -8,6 +8,8 @@ Field service routing optimizes itineraries of employees visiting customers loca
 Visits require the employees to have various skills and to arrive in the specified availability windows.
 The goal is to minimize the time employees spend by traveling and waiting, and, by that, increasing the number of scheduled visits.
 
+<button type="button">Click Me!</button>
+
 image:understanding-field-service-routing/introduction/field-service-routing-map-view.png[Field Service Routing map view]
 
 image:understanding-field-service-routing/introduction/field-service-routing-time-view.png[Field Service Routing time view]
