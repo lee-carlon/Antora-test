@@ -3,4 +3,4 @@ title: Field Service Routing
 version: latest
 nav:
   - modules/user-guide/nav.adoc
-start_page: user-guide:understanding-field-service-routing/introduction.adoc
+start_page: user-guide:getting-started.adoc
