@@ -3,7 +3,7 @@ site:
   start_page: component-b::index.adoc
 content:
   sources:
- - url: https://github.com/lee-carlon/Antora-test.git
+  - url: https://github.com/lee-carlon/Antora-test.git
     branches: [main]
     tags: ~
     start_path: docs
