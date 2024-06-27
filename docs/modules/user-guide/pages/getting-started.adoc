@@ -6,15 +6,19 @@
 
 Text that says something
 
-.Show stacktrace
+.sample.json
 [%collapsible]
 ====
-....
-Error: Content repository not found (url: https://git.example.org/repo.git)
-    at transformGitCloneError
-    at git.clone.then.then.catch
-Caused by: HttpError: HTTP Error: 401 HTTP Basic: Access Denied
-    at GitCredentialManagerStore.rejected
-    at fill.then
-....
+[source,json]
+{
+    "id": "982b3589-86ac-497b-bd49-85df4635bff8",
+    "name": "Run-2024-06-27T09:57:17.391419059Z",
+    "submitDateTime": "2024-06-27T09:57:17.391419059Z",
+    "startDateTime": null,
+    "completeDateTime": null,
+    "solverStatus": "SOLVING_SCHEDULED",
+    "score": null,
+    "tags": null,
+    "validationResult": null
+}
 ====
