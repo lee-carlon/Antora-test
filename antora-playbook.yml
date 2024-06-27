@@ -1,6 +1,5 @@
 site:
   title: Antora Docs
-  start_page: Antora-test:user-guide/getting-started.adoc
 content:
   sources:
   - url: https://github.com/lee-carlon/Antora-test.git
