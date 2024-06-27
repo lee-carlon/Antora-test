@@ -1,15 +1,16 @@
 site:
   title: Antora Docs
+  start_page: timefold-solver::quickstart/overview.adoc
 content:
   sources:
   - url: https://github.com/lee-carlon/Antora-test.git
     branches: [main]
     tags: ~
     start_path: docs
-#  - url: https://github.com/TimefoldAI/timefold-solver.git
-#    branches: ~
-#    tags: [v1.11.0, v0.8.42]
-#    start_path: docs/src
+  - url: https://github.com/TimefoldAI/timefold-solver.git
+    branches: ~
+    tags: [v1.11.0, v0.8.42]
+    start_path: docs/src
 #  - url: https://gitlab.com/antora/demo/demo-component-a.git
 #    branches: HEAD
 #  - url: https://gitlab.com/antora/demo/demo-component-b.git
