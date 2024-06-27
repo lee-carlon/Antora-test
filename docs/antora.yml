@@ -1,6 +1,6 @@
-name: field-service-routing
-title: Field Service Routing
-version: latest
+name: Main
+title: main
+version: ~
 nav:
-  - modules/user-guide/nav.adoc
-start_page: user-guide:getting-started.adoc
+  - modules/nav.adoc
+start_page: getting-started.adoc
