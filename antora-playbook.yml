@@ -4,8 +4,7 @@ site:
 content:
   sources:
   - url: https://github.com/lee-carlon/Antora-test.git
-    branches: [main]
-    tags: ~
+    branches: HEAD
     start_path: docs
 ui:
   bundle:
